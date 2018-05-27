@@ -23,6 +23,7 @@ public class WheelView extends View {
     private final Paint mPaint = new Paint();
     // 数据
     private final ArrayList<String> list = new ArrayList<>();
+    private final Scroller scroller = new Scroller(getContext());
 
     // 本次滑动的y坐标偏移值
     private float offsetY;
@@ -48,14 +49,6 @@ public class WheelView extends View {
     // 正常状态下最多显示几个文字，默认3（偶数时，边缘的文字会截断）
     private int mItemCount = 5;
 
-    private TextPaint textPaint;
-    private Paint.FontMetrics fm;
-
-    private Scroller scroller;
-    //    private VelocityTracker velocityTracker;
-//    private int minimumVelocity;
-    private int scaledTouchSlop;
-
     // 按下时的y坐标
     private float downY;
     // 在fling之前的offsetY
@@ -79,14 +72,6 @@ public class WheelView extends View {
 
     public WheelView(Context context, AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
-
-        textPaint = new TextPaint();
-        textPaint.setTextSize(textSize);
-        textPaint.setAntiAlias(true);
-        fm = textPaint.getFontMetrics();
-
-        scroller = new Scroller(context);
-        scaledTouchSlop = ViewConfiguration.get(getContext()).getScaledTouchSlop();
 
         TypedArray a = null;
         try {
@@ -145,6 +130,7 @@ public class WheelView extends View {
             }
 
             offsetY -= distanceY;
+            final int scaledTouchSlop = ViewConfiguration.get(getContext()).getScaledTouchSlop();
             if (isSliding || Math.abs(offsetY) > scaledTouchSlop) {
                 isSliding = true;
                 reDraw();
@@ -154,9 +140,9 @@ public class WheelView extends View {
 
         @Override
         public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
-            Log.e("onFling", "velocityY = " + velocityY + ", selectPosition = " + selectPosition);
+           // Log.e("onFling", "velocityY = " + velocityY + ", selectPosition = " + selectPosition);
 
-            int velocity = (int) (velocityY * 0.5f);
+            final int velocity = (int) (velocityY * 0.5f);
 
             oldOffsetY = offsetY;
             scroller.fling(0, 0, 0, velocity, 0, 0, -Integer.MAX_VALUE, Integer.MAX_VALUE);
@@ -224,20 +210,29 @@ public class WheelView extends View {
                 tempScale = tempScale < 1.0f ? 1.0f : tempScale;
                 float tempAlpha = (tempScale - 1) / (textMaxScale - 1);
                 float textAlpha = (1 - textMinAlpha) * tempAlpha + textMinAlpha;
-                textPaint.setTextSize(textSize * tempScale);
-                textPaint.setAlpha((int) (255 * textAlpha));
+
+                mPaint.reset();
+                mPaint.clearShadowLayer();
+                mPaint.setAntiAlias(true);
+                mPaint.setStrokeJoin(Paint.Join.ROUND);
+                mPaint.setStrokeCap(Paint.Cap.ROUND);
+                mPaint.setStyle(Paint.Style.STROKE);
+                mPaint.setFakeBoldText(true);
+                mPaint.setTextSize(textSize);
+                mPaint.setTextSize(textSize * tempScale);
+                mPaint.setAlpha((int) (255 * textAlpha));
 
                 // 绘制
-                Paint.FontMetrics tempFm = textPaint.getFontMetrics();
+                Paint.FontMetrics tempFm = mPaint.getFontMetrics();
                 String text = list.get(index);
-                float textWidth = textPaint.measureText(text);
+                float textWidth = mPaint.measureText(text);
                 if (tempScale == 1.0f) {
-                    textPaint.setColor(textColorNormal);
+                    mPaint.setColor(textColorNormal);
                 } else {
-                    textPaint.setColor(textColorSelect);
+                    mPaint.setColor(textColorSelect);
                     //   mVibrator.vibrate(10);
                 }
-                canvas.drawText(text, centerX - textWidth / 2, tempY - (tempFm.ascent + tempFm.descent) / 2, textPaint);
+                canvas.drawText(text, centerX - textWidth / 2, tempY - (tempFm.ascent + tempFm.descent) / 2, mPaint);
             }
         }
 
@@ -246,6 +241,8 @@ public class WheelView extends View {
         final float bottom = centerY + height * 0.1f;
         final float left = getPaddingLeft() + stockSize * 0.5f;
         final float right = getWidth() - getPaddingRight() - stockSize * 0.5f;
+        mPaint.reset();
+        mPaint.clearShadowLayer();
         mPaint.setAntiAlias(true);
         mPaint.setStrokeJoin(Paint.Join.ROUND);
         mPaint.setStrokeCap(Paint.Cap.ROUND);
