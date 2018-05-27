@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <declare-styleable name="WheelView">
+        <attr name="wv_text_size" format="dimension|reference" />
+        <attr name="wv_text_scale" format="float|reference" />
+        <attr name="wv_text_alpha" format="float|reference" />
+        <attr name="wv_text_loop" format="boolean" />
+        <attr name="wv_text_count" format="integer|reference" />
+        <attr name="wv_text_color_normal" format="color|reference" />
+        <attr name="wv_stock_size" format="dimension|reference" />
+        <attr name="wv_stock_color" format="color|reference" />
+        <attr name="wv_text_color_select" format="color|reference" />
+    </declare-styleable>
+</resources>
