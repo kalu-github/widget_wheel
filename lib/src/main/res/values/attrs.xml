@@ -4,6 +4,7 @@
         <attr name="wv_text_size" format="dimension|reference" />
         <attr name="wv_text_scale" format="float|reference" />
         <attr name="wv_text_alpha" format="float|reference" />
+        <attr name="wv_fill" format="boolean|reference" />
         <attr name="wv_text_loop" format="boolean" />
         <attr name="wv_text_count" format="integer|reference" />
         <attr name="wv_text_color_normal" format="color|reference" />

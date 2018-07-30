@@ -5,10 +5,7 @@ import android.content.res.TypedArray;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
-import android.os.Vibrator;
-import android.text.TextPaint;
 import android.util.AttributeSet;
-import android.util.Log;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.View;
@@ -18,12 +15,15 @@ import android.widget.Scroller;
 import java.util.ArrayList;
 import java.util.List;
 
-public class WheelView extends View {
+/**
+ * description: 选择器
+ * created by kalu on 2018/5/27 15:43
+ */
+public final class WheelView extends View {
 
     private final Paint mPaint = new Paint();
-    // 数据
-    private final ArrayList<String> list = new ArrayList<>();
-    private final Scroller scroller = new Scroller(getContext());
+    private final Scroller mScroller = new Scroller(getContext());
+    private final ArrayList<String> mWheelDatas = new ArrayList<>();
 
     // 本次滑动的y坐标偏移值
     private float offsetY;
@@ -31,10 +31,10 @@ public class WheelView extends View {
     private int selectPosition = 0;
 
     // 边框
-    private float stockSize = 2f;
-    private int stockColor = Color.BLACK;
-
- //   private final Vibrator mVibrator = (Vibrator) getContext().getSystemService(getContext().VIBRATOR_SERVICE);
+    private boolean isFill;
+    private float stockSize = 0f;
+    private int stockColor = Color.TRANSPARENT;
+    // private final Vibrator mVibrator = (Vibrator) getContext().getSystemService(getContext().VIBRATOR_SERVICE);
 
     // 文字大小
     private float textSize = 14f;
@@ -85,6 +85,7 @@ public class WheelView extends View {
             mItemCount = a.getInteger(R.styleable.WheelView_wv_text_count, mItemCount);
             stockColor = a.getColor(R.styleable.WheelView_wv_stock_color, stockColor);
             stockSize = a.getDimension(R.styleable.WheelView_wv_stock_size, stockSize);
+            isFill = a.getBoolean(R.styleable.WheelView_wv_fill, isFill);
         } catch (Exception e) {
             if (null == a) return;
             a.recycle();
@@ -95,18 +96,22 @@ public class WheelView extends View {
     public boolean onTouchEvent(MotionEvent event) {
 
         // 多点不响应
-        if (event.getPointerCount() != 1)
+        if (mWheelDatas.isEmpty() || event.getPointerCount() != 1)
             return super.onTouchEvent(event);
 
         mSimpleOnGestureListener.onTouchEvent(event);
 
         switch (event.getAction()) {
             case MotionEvent.ACTION_DOWN:
-                if (!scroller.isFinished()) {
-                    scroller.forceFinished(true);
+                if (!mScroller.isFinished()) {
+                    mScroller.forceFinished(true);
                     finishScroll();
                 }
                 downY = event.getY();
+                break;
+            case MotionEvent.ACTION_UP:
+            case MotionEvent.ACTION_CANCEL:
+                finishScroll();
                 break;
         }
         return true;
@@ -125,7 +130,7 @@ public class WheelView extends View {
                 return false;
             }
             // 向上滑动, distanceY>0
-            else if (distanceY > 0 && selectPosition == (list.size() - 1) && !isLoop) {
+            else if (distanceY > 0 && selectPosition == (mWheelDatas.size() - 1) && !isLoop) {
                 return false;
             }
 
@@ -140,12 +145,12 @@ public class WheelView extends View {
 
         @Override
         public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
-           // Log.e("onFling", "velocityY = " + velocityY + ", selectPosition = " + selectPosition);
+            // Log.e("onFling", "velocityY = " + velocityY + ", selectPosition = " + selectPosition);
 
             final int velocity = (int) (velocityY * 0.5f);
 
             oldOffsetY = offsetY;
-            scroller.fling(0, 0, 0, velocity, 0, 0, -Integer.MAX_VALUE, Integer.MAX_VALUE);
+            mScroller.fling(0, 0, 0, velocity, 0, 0, -Integer.MAX_VALUE, Integer.MAX_VALUE);
             postInvalidate();
 
             // 没有滑动，则判断点击事件
@@ -174,7 +179,8 @@ public class WheelView extends View {
     @Override
     protected void onDraw(Canvas canvas) {
 
-        if (null == list || list.size() == 0) return;
+        if (mWheelDatas.isEmpty())
+            return;
 
         final float height = getHeight();
         final float width = getWidth();
@@ -182,19 +188,37 @@ public class WheelView extends View {
         final float centerY = height * 0.5f;
         final float centerX = width * 0.5f;
 
+        // 选中状态边框
+        if (stockSize != 0f) {
+            final float top = centerY - height * 0.1f;
+            final float bottom = centerY + height * 0.1f;
+            final float left = getPaddingLeft() + stockSize * 0.5f;
+            final float right = getWidth() - getPaddingRight() - stockSize * 0.5f;
+            mPaint.reset();
+            mPaint.clearShadowLayer();
+            mPaint.setAntiAlias(true);
+            mPaint.setStrokeJoin(Paint.Join.ROUND);
+            mPaint.setStrokeCap(Paint.Cap.ROUND);
+            mPaint.setStyle(isFill ? Paint.Style.FILL_AND_STROKE : Paint.Style.STROKE);
+            mPaint.setFakeBoldText(true);
+            mPaint.setStrokeWidth(stockSize);
+            mPaint.setColor(stockColor);
+            canvas.drawRect(left, top, right, bottom, mPaint);
+        }
+
         // LogUtil.e("wheel", "onDraw ==> selectPosition = " + selectPosition);
 
         // 绘制文字，从当前中间项往前、后一共绘制maxShowNum个字
-        int size = list.size();
+        int size = mWheelDatas.size();
         int half = mItemCount / 2 + 1;
         for (int i = -half; i <= half; i++) {
             int index = selectPosition - offsetIndex + i;
 
             if (isLoop) {
                 if (index < 0)
-                    index = (index + 1) % list.size() + list.size() - 1;
-                else if (index > list.size() - 1)
-                    index = index % list.size();
+                    index = (index + 1) % mWheelDatas.size() + mWheelDatas.size() - 1;
+                else if (index > mWheelDatas.size() - 1)
+                    index = index % mWheelDatas.size();
             }
 
             if (index >= 0 && index < size) {
@@ -216,15 +240,15 @@ public class WheelView extends View {
                 mPaint.setAntiAlias(true);
                 mPaint.setStrokeJoin(Paint.Join.ROUND);
                 mPaint.setStrokeCap(Paint.Cap.ROUND);
-                mPaint.setStyle(Paint.Style.STROKE);
-                mPaint.setFakeBoldText(true);
+                mPaint.setStyle(Paint.Style.FILL_AND_STROKE);
+                mPaint.setFakeBoldText(false);
                 mPaint.setTextSize(textSize);
                 mPaint.setTextSize(textSize * tempScale);
                 mPaint.setAlpha((int) (255 * textAlpha));
 
                 // 绘制
                 Paint.FontMetrics tempFm = mPaint.getFontMetrics();
-                String text = list.get(index);
+                String text = mWheelDatas.get(index);
                 float textWidth = mPaint.measureText(text);
                 if (tempScale == 1.0f) {
                     mPaint.setColor(textColorNormal);
@@ -235,37 +259,21 @@ public class WheelView extends View {
                 canvas.drawText(text, centerX - textWidth / 2, tempY - (tempFm.ascent + tempFm.descent) / 2, mPaint);
             }
         }
-
-        // 选中状态边框
-        final float top = centerY - height * 0.1f;
-        final float bottom = centerY + height * 0.1f;
-        final float left = getPaddingLeft() + stockSize * 0.5f;
-        final float right = getWidth() - getPaddingRight() - stockSize * 0.5f;
-        mPaint.reset();
-        mPaint.clearShadowLayer();
-        mPaint.setAntiAlias(true);
-        mPaint.setStrokeJoin(Paint.Join.ROUND);
-        mPaint.setStrokeCap(Paint.Cap.ROUND);
-        mPaint.setStyle(Paint.Style.STROKE);
-        mPaint.setFakeBoldText(true);
-        mPaint.setStrokeWidth(stockSize);
-        mPaint.setColor(stockColor);
-        canvas.drawRect(left, top, right, bottom, mPaint);
     }
 
     @Override
     public void computeScroll() {
-        if (scroller.computeScrollOffset()) {
-            offsetY = oldOffsetY + scroller.getCurrY();
+        if (mScroller.computeScrollOffset()) {
+            offsetY = oldOffsetY + mScroller.getCurrY();
 
             // 向下滑动, distanceY<0
             if (selectPosition == 0 && !isLoop) {
                 finishScroll();
             }
             // 向上滑动, distanceY>0
-            else if (selectPosition == (list.size() - 1) && !isLoop) {
+            else if (selectPosition == (mWheelDatas.size() - 1) && !isLoop) {
                 finishScroll();
-            } else if (scroller.isFinished()) {
+            } else if (mScroller.isFinished()) {
                 finishScroll();
             } else {
                 reDraw();
@@ -279,15 +287,15 @@ public class WheelView extends View {
         final float itemHeight = getHeight() * 0.2f;
 
         int i = (int) (offsetY / (itemHeight));
-        if (isLoop || (selectPosition - i >= 0 && selectPosition - i < list.size())) {
+        if (isLoop || (selectPosition - i >= 0 && selectPosition - i < mWheelDatas.size())) {
             if (offsetIndex != i) {
                 offsetIndex = i;
 
                 final int index = getNowIndex(-offsetIndex);
-                mCurText = list.get(index);
-                if (null != listener) {
-                 //   mVibrator.vibrate(10);
-                    listener.onWheelChnage(index, mCurText);
+                mCurText = mWheelDatas.get(index);
+                if (null != mWheelDatasener) {
+                    //   mVibrator.vibrate(10);
+                    mWheelDatasener.onWheelChange(index, mCurText);
                 }
             }
             postInvalidate();
@@ -315,10 +323,10 @@ public class WheelView extends View {
         offsetY += bounceDistance;
 
         // 更新
-        mCurText = list.get(selectPosition);
-        if (null != listener) {
-          //  mVibrator.vibrate(10);
-            listener.onWheelChnage(selectPosition, mCurText);
+        mCurText = mWheelDatas.get(selectPosition);
+        if (null != mWheelDatasener) {
+            //  mVibrator.vibrate(10);
+            mWheelDatasener.onWheelChange(selectPosition, mCurText);
         }
 
         // 重绘
@@ -330,14 +338,14 @@ public class WheelView extends View {
         int index = selectPosition + offsetIndex;
         if (isLoop) {
             if (index < 0)
-                index = (index + 1) % list.size() + list.size() - 1;
-            else if (index > list.size() - 1)
-                index = index % list.size();
+                index = (index + 1) % mWheelDatas.size() + mWheelDatas.size() - 1;
+            else if (index > mWheelDatas.size() - 1)
+                index = index % mWheelDatas.size();
         } else {
             if (index < 0)
                 index = 0;
-            else if (index > list.size() - 1)
-                index = list.size() - 1;
+            else if (index > mWheelDatas.size() - 1)
+                index = mWheelDatas.size() - 1;
         }
         return index;
     }
@@ -354,7 +362,7 @@ public class WheelView extends View {
      *
      * @return 选中的下标
      */
-    public int getselectPosition() {
+    public int getSelectPosition() {
         return selectPosition - offsetIndex;
     }
 
@@ -363,43 +371,45 @@ public class WheelView extends View {
     }
 
     public String getDefaultText() {
-        return list.get(0);
+        return mWheelDatas.get(0);
     }
 
     public void setDefault(String str) {
 
-        if (null == list || list.size() == 0 || !list.contains(str)) {
+        if (null == mWheelDatas || mWheelDatas.size() == 0 || !mWheelDatas.contains(str))
             return;
-        }
-        selectPosition = list.indexOf(str);
+
+        mCurText = str;
+        selectPosition = mWheelDatas.indexOf(str);
     }
 
     public void setDefault(int index) {
-        if (index < 0 || index >= list.size() || selectPosition == index)
+        if (index < 0 || index >= mWheelDatas.size() || selectPosition == index)
             return;
+        mCurText = mWheelDatas.get(index - 1);
         selectPosition = (index - 1);
     }
 
     public void moveTo(String str) {
 
-        if (null == list || list.size() == 0 || !list.contains(str)) return;
-        selectPosition = list.indexOf(str);
+        if (null == mWheelDatas || mWheelDatas.size() == 0 || !mWheelDatas.contains(str)) return;
+        selectPosition = mWheelDatas.indexOf(str);
         postInvalidate();
     }
 
     public void moveTo(int index) {
-        if (index < 0 || index >= list.size() || selectPosition == index)
+        if (index < 0 || index >= mWheelDatas.size() || selectPosition == index)
             return;
         selectPosition = (index - 1);
         postInvalidate();
     }
 
     public void moveTo(int index, int smoothTime) {
-        if (index < 0 || index >= list.size() || selectPosition == index)
+        if (index < 0 || index >= mWheelDatas.size() || selectPosition == index)
             return;
 
-        if (!scroller.isFinished())
-            scroller.forceFinished(true);
+        if (!mScroller.isFinished())
+            mScroller.forceFinished(true);
 
         finishScroll();
 
@@ -411,7 +421,7 @@ public class WheelView extends View {
         } else {
             float offsetIndex = selectPosition - index;
             float d1 = Math.abs(offsetIndex) * itemHeight;
-            float d2 = (list.size() - Math.abs(offsetIndex)) * itemHeight;
+            float d2 = (mWheelDatas.size() - Math.abs(offsetIndex)) * itemHeight;
 
             if (offsetIndex > 0) {
                 if (d1 < d2)
@@ -425,7 +435,7 @@ public class WheelView extends View {
                     dy = d2; // ascent
             }
         }
-        scroller.startScroll(0, 0, 0, (int) dy, smoothTime);
+        mScroller.startScroll(0, 0, 0, (int) dy, smoothTime);
         postInvalidate();
     }
 
@@ -446,40 +456,40 @@ public class WheelView extends View {
      * 滚动发生变化时的回调接口
      */
     public interface OnWheelChangeListener {
-        void onWheelChnage(int index, String str);
+        void onWheelChange(int index, String str);
     }
 
-    private OnWheelChangeListener listener;
+    private OnWheelChangeListener mWheelDatasener;
 
-    public void setOnWheelChangeListener(OnWheelChangeListener listener) {
-        this.listener = listener;
+    public void setOnWheelChangeListener(OnWheelChangeListener mWheelDatasener) {
+        this.mWheelDatasener = mWheelDatasener;
     }
 
     /**********************************************************************************************/
 
-    public final void setList(List<String> list1) {
-        setList(list1, 0);
+    public final void setList(List<String> mWheelDatas1) {
+        setList(mWheelDatas1, 0);
     }
 
-    public final void setList(List<String> list1, int select) {
+    public final void setList(List<String> mWheelDatas1, int select) {
 
-        if (null == list1 || list1.size() == 0)
+        if (null == mWheelDatas1 || mWheelDatas1.size() == 0)
             return;
 
-        list.clear();
-        list.addAll(list1);
+        mWheelDatas.clear();
+        mWheelDatas.addAll(mWheelDatas1);
 
         // 更新maxTextWidth
-        if (null != list && list.size() > 0) {
+        if (null != mWheelDatas && mWheelDatas.size() > 0) {
 
-            mCurText = list.get(0);
-            if (null != listener) {
-             //   mVibrator.vibrate(10);
-                listener.onWheelChnage(0, list.get(0));
+            mCurText = mWheelDatas.get(select);
+            if (null != mWheelDatasener) {
+                //   mVibrator.vibrate(10);
+                mWheelDatasener.onWheelChange(0, mWheelDatas.get(0));
             }
             selectPosition = select;
         }
-        requestLayout();
+        // requestLayout();
         postInvalidate();
     }
 }
