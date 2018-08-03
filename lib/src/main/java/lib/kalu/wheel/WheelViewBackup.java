@@ -6,7 +6,6 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.util.AttributeSet;
-import android.util.Log;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.View;
@@ -20,7 +19,7 @@ import java.util.List;
  * description: 选择器
  * created by kalu on 2018/5/27 15:43
  */
-public final class WheelView extends View {
+public final class WheelViewBackup extends View {
 
     private final Paint mPaint = new Paint();
     private final Scroller mScroller = new Scroller(getContext());
@@ -63,15 +62,15 @@ public final class WheelView extends View {
 
     private String mCurText = "";
 
-    public WheelView(Context context) {
+    public WheelViewBackup(Context context) {
         this(context, null);
     }
 
-    public WheelView(Context context, AttributeSet attrs) {
+    public WheelViewBackup(Context context, AttributeSet attrs) {
         this(context, attrs, 0);
     }
 
-    public WheelView(Context context, AttributeSet attrs, int defStyleAttr) {
+    public WheelViewBackup(Context context, AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
 
         TypedArray a = null;
@@ -111,6 +110,7 @@ public final class WheelView extends View {
                 downY = event.getY();
                 break;
             case MotionEvent.ACTION_UP:
+            case MotionEvent.ACTION_CANCEL:
                 finishScroll();
                 break;
         }
@@ -120,13 +120,17 @@ public final class WheelView extends View {
     private final GestureDetector mSimpleOnGestureListener = new GestureDetector(getContext(), new GestureDetector.SimpleOnGestureListener() {
 
         @Override
+        public void onLongPress(MotionEvent e) {
+        }
+
+        @Override
         public boolean onScroll(MotionEvent e1, MotionEvent e2, float distanceX, float distanceY) {
             // 向下滑动, distanceY<0
-            if (distanceY < 0 && getSelectPosition() == 0 && !isLoop) {
+            if (distanceY < 0 && selectPosition == 0 && !isLoop) {
                 return false;
             }
             // 向上滑动, distanceY>0
-            else if (distanceY > 0 && getSelectPosition() == (mWheelDatas.size() - 1) && !isLoop) {
+            else if (distanceY > 0 && selectPosition == (mWheelDatas.size() - 1) && !isLoop) {
                 return false;
             }
 
@@ -143,10 +147,11 @@ public final class WheelView extends View {
         public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
             // Log.e("onFling", "velocityY = " + velocityY + ", selectPosition = " + selectPosition);
 
-            final int velocity = (int) (velocityY * 0.3f);
+            final int velocity = (int) (velocityY * 0.5f);
 
             oldOffsetY = offsetY;
             mScroller.fling(0, 0, 0, velocity, 0, 0, -Integer.MAX_VALUE, Integer.MAX_VALUE);
+            postInvalidate();
 
             // 没有滑动，则判断点击事件
             if (!isSliding) {
@@ -158,6 +163,16 @@ public final class WheelView extends View {
 
             isSliding = false;
             return false;
+        }
+
+        @Override
+        public boolean onDoubleTap(MotionEvent e) {
+            return true;
+        }
+
+        @Override
+        public boolean onSingleTapConfirmed(MotionEvent e) {
+            return true;
         }
     });
 
@@ -280,7 +295,6 @@ public final class WheelView extends View {
                 mCurText = mWheelDatas.get(index);
                 if (null != mWheelDatasener) {
                     //   mVibrator.vibrate(10);
-                   // selectPosition = index;
                     mWheelDatasener.onChange(index, mCurText);
                 }
             }
@@ -474,7 +488,6 @@ public final class WheelView extends View {
             mCurText = mWheelDatas.get(select);
             if (null != mWheelDatasener) {
                 //   mVibrator.vibrate(10);
-                selectPosition = 0;
                 mWheelDatasener.onChange(0, mWheelDatas.get(0));
             }
             selectPosition = select;

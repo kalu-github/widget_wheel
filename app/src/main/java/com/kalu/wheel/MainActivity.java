@@ -24,7 +24,7 @@ public class MainActivity extends AppCompatActivity {
         wheel1.setList(list);
         wheel1.setOnWheelChangeListener(new WheelView.OnWheelChangeListener() {
             @Override
-            public void onWheelChange(int index, String str) {
+            public void onChange(int index, String str) {
                 final TextView text = findViewById(R.id.text1);
                 text.setText("选中：" + str);
             }
@@ -34,7 +34,7 @@ public class MainActivity extends AppCompatActivity {
         wheel2.setList(list);
         wheel2.setOnWheelChangeListener(new WheelView.OnWheelChangeListener() {
             @Override
-            public void onWheelChange(int index, String str) {
+            public void onChange(int index, String str) {
                 final TextView text = findViewById(R.id.text2);
                 text.setText("选中：" + str);
             }
