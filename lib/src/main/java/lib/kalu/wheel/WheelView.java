@@ -6,7 +6,6 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.util.AttributeSet;
-import android.util.Log;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.View;
@@ -106,12 +105,12 @@ public final class WheelView extends View {
             case MotionEvent.ACTION_DOWN:
                 if (!mScroller.isFinished()) {
                     mScroller.forceFinished(true);
-                    finishScroll();
+                    stopScroll();
                 }
                 downY = event.getY();
                 break;
             case MotionEvent.ACTION_UP:
-                finishScroll();
+                stopScroll();
                 break;
         }
         return true;
@@ -134,7 +133,7 @@ public final class WheelView extends View {
             final int scaledTouchSlop = ViewConfiguration.get(getContext()).getScaledTouchSlop();
             if (isSliding || Math.abs(offsetY) > scaledTouchSlop) {
                 isSliding = true;
-                reDraw();
+                resetDraw();
             }
             return false;
         }
@@ -248,30 +247,35 @@ public final class WheelView extends View {
 
     @Override
     public void computeScroll() {
-        if (mScroller.computeScrollOffset()) {
-            offsetY = oldOffsetY + mScroller.getCurrY();
+        if (!mScroller.computeScrollOffset())
+            return;
 
-            // 向下滑动, distanceY<0
-            if (selectPosition == 0 && !isLoop) {
-                finishScroll();
-            }
-            // 向上滑动, distanceY>0
-            else if (selectPosition == (mWheelDatas.size() - 1) && !isLoop) {
-                finishScroll();
-            } else if (mScroller.isFinished()) {
-                finishScroll();
-            } else {
-                reDraw();
-            }
+        offsetY = oldOffsetY + mScroller.getCurrY();
+
+        // 向下滑动, distanceY<0
+        if (selectPosition == 0 && !isLoop) {
+            stopScroll();
+        }
+        // 向上滑动, distanceY>0
+        else if (selectPosition == (mWheelDatas.size() - 1) && !isLoop) {
+            stopScroll();
+        } else if (mScroller.isFinished()) {
+            stopScroll();
+        } else {
+            resetDraw();
         }
     }
 
-    private void reDraw() {
-        // selectPosition需要偏移的量
+    /********************************************************************************************/
+
+    private final void resetDraw() {
+        
+        if(mWheelDatas.isEmpty())
+            return;
 
         final float itemHeight = getHeight() * 0.2f;
+        final int i = (int) (offsetY / (itemHeight));
 
-        int i = (int) (offsetY / (itemHeight));
         if (isLoop || (selectPosition - i >= 0 && selectPosition - i < mWheelDatas.size())) {
             if (offsetIndex != i) {
                 offsetIndex = i;
@@ -280,17 +284,17 @@ public final class WheelView extends View {
                 mCurText = mWheelDatas.get(index);
                 if (null != mWheelDatasener) {
                     //   mVibrator.vibrate(10);
-                   // selectPosition = index;
+                    // selectPosition = index;
                     mWheelDatasener.onChange(index, mCurText);
                 }
             }
             postInvalidate();
         } else {
-            finishScroll();
+            stopScroll();
         }
     }
 
-    private void finishScroll() {
+    private final void stopScroll() {
         // 判断结束滑动后应该停留在哪个位置
 
         final float itemHeight = getHeight() * 0.2f;
@@ -320,7 +324,7 @@ public final class WheelView extends View {
         postInvalidate();
     }
 
-    private int getNowIndex(int offsetIndex) {
+    private final int getNowIndex(int offsetIndex) {
         int index = selectPosition + offsetIndex;
         if (isLoop) {
             if (index < 0)
@@ -336,12 +340,14 @@ public final class WheelView extends View {
         return index;
     }
 
-    private void reset() {
+    private final void reset() {
         offsetY = 0;
         oldOffsetY = 0;
         offsetIndex = 0;
         bounceDistance = 0;
     }
+
+    /********************************************************************************************/
 
     /**
      * 获取当前状态下，选中的下标
@@ -397,7 +403,7 @@ public final class WheelView extends View {
         if (!mScroller.isFinished())
             mScroller.forceFinished(true);
 
-        finishScroll();
+        stopScroll();
 
         final float itemHeight = getHeight() * 0.2f;
 
@@ -425,7 +431,7 @@ public final class WheelView extends View {
         postInvalidate();
     }
 
-    public void setLoop(boolean loop) {
+    public final void setLoop(boolean loop) {
         isLoop = loop;
     }
 
